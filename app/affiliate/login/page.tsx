@@ -25,7 +25,14 @@ export default async function AffiliateLoginPage({
   const m = await pageMessages();
   const { error, activated } = await searchParams;
   return (
-    <main className="panel">
+    <main className="authwrap">
+      <div className="authcard">
+        <div className="authbrand">
+          <span className="logo-mark" aria-hidden="true">
+            S
+          </span>
+          <span className="authbrand-name">{m.home.brand}</span>
+        </div>
       <h1>{m.auth.affiliateTitle}</h1>
       <p>{m.auth.affiliateOnly}</p>
       {activated ? <p className="ok">{m.activate.done}</p> : null}
@@ -41,6 +48,7 @@ export default async function AffiliateLoginPage({
         </label>
         <button type="submit">{m.auth.submit}</button>
       </form>
+      </div>
     </main>
   );
 }

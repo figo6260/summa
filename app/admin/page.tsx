@@ -4,6 +4,7 @@ import { effectiveCommissionCents, getAffiliateBalance } from "@/lib/balance";
 import { getSingleProgram } from "@/lib/services";
 import { pageMessages } from "@/lib/page-i18n";
 import AdminNav from "./admin-nav";
+import StatusBadge from "../status-badge";
 
 const STATUSES = ["HOLDING", "AVAILABLE", "PAID", "REJECTED", "REVERSED"] as const;
 
@@ -105,14 +106,14 @@ export default async function AdminDashboardPage() {
         <thead>
           <tr>
             <th>{m.common.status}</th>
-            <th>{m.commissions.effective}</th>
+            <th className="num">{m.commissions.effective}</th>
           </tr>
         </thead>
         <tbody>
           {STATUSES.map((status) => (
             <tr key={status}>
-              <td>{m.commissions[`status${status}`]}</td>
-              <td>
+              <td><StatusBadge status={status} label={m.commissions[`status${status}`]} /></td>
+              <td className="num">
                 {(byStatus.get(status) ?? 0).toLocaleString()} {program.currency}
               </td>
             </tr>

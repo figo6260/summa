@@ -22,7 +22,14 @@ export default async function AdminLoginPage({
   const m = await pageMessages();
   const { error } = await searchParams;
   return (
-    <main className="panel">
+    <main className="authwrap">
+      <div className="authcard">
+        <div className="authbrand">
+          <span className="logo-mark" aria-hidden="true">
+            S
+          </span>
+          <span className="authbrand-name">{m.home.brand}</span>
+        </div>
       <h1>{m.auth.adminTitle}</h1>
       <p>{m.auth.adminOnly}</p>
       {error ? <p className="error">{m.auth.invalid}</p> : null}
@@ -37,6 +44,7 @@ export default async function AdminLoginPage({
         </label>
         <button type="submit">{m.auth.submit}</button>
       </form>
+      </div>
     </main>
   );
 }

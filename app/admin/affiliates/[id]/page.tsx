@@ -13,6 +13,7 @@ import {
 } from "@/lib/services";
 import { pageMessages } from "@/lib/page-i18n";
 import AdminNav from "../../admin-nav";
+import StatusBadge from "../../../status-badge";
 
 const METHODS: PayoutMethod[] = ["MANUAL", "BANK_TRANSFER", "PAYPAL", "WISE", "OTHER"];
 
@@ -179,7 +180,7 @@ export default async function AffiliateDetailPage({
                   {link.targetUrl ?? program?.defaultTargetUrl ?? m.common.none}
                 </td>
                 <td>{link._count.clicks}</td>
-                <td>{link.isActive ? m.links.statusActive : m.links.statusDisabled}</td>
+                <td><StatusBadge status={link.isActive ? "ACTIVE" : "DISABLED"} label={link.isActive ? m.links.statusActive : m.links.statusDisabled} /></td>
                 <td className="rowactions">
                   <form action={toggleLinkAction}>
                     <input type="hidden" name="affiliateId" value={affiliate.id} />
@@ -238,7 +239,7 @@ export default async function AffiliateDetailPage({
               <tr key={code.id}>
                 <td>{code.code}</td>
                 <td>{code.discountBps}</td>
-                <td>{code.isActive ? m.links.statusActive : m.links.statusDisabled}</td>
+                <td><StatusBadge status={code.isActive ? "ACTIVE" : "DISABLED"} label={code.isActive ? m.links.statusActive : m.links.statusDisabled} /></td>
                 <td className="rowactions">
                   <form action={toggleCodeAction}>
                     <input type="hidden" name="affiliateId" value={affiliate.id} />

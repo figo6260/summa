@@ -14,6 +14,7 @@ import { effectiveCommissionCents } from "@/lib/balance";
 import { pageMessages } from "@/lib/page-i18n";
 import type { Messages } from "@/lib/i18n";
 import AdminNav from "../admin-nav";
+import StatusBadge from "../../status-badge";
 
 const PAGE_SIZE = 20;
 
@@ -218,9 +219,9 @@ export default async function CommissionsPage({
               <th>{m.common.createdAt}</th>
               <th>{m.commissions.order}</th>
               <th>{m.commissions.affiliate}</th>
-              <th>{m.commissions.gross}</th>
-              <th>{m.commissions.reversed}</th>
-              <th>{m.commissions.effective}</th>
+              <th className="num">{m.commissions.gross}</th>
+              <th className="num">{m.commissions.reversed}</th>
+              <th className="num">{m.commissions.effective}</th>
               <th>{m.common.status}</th>
               <th>{m.commissions.holdUntil}</th>
               <th>{m.common.actions}</th>
@@ -236,13 +237,13 @@ export default async function CommissionsPage({
                   <td>
                     {commission.affiliate.name} · {commission.affiliate.email}
                   </td>
-                  <td>
+                  <td className="num">
                     {commission.amountCents} {commission.currency}
                   </td>
-                  <td>{commission.reversedCents}</td>
-                  <td>{effectiveCommissionCents(commission)}</td>
+                  <td className="num">{commission.reversedCents}</td>
+                  <td className="num">{effectiveCommissionCents(commission)}</td>
                   <td>
-                    {statusLabel(m, commission.status)}
+                    <StatusBadge status={commission.status} label={statusLabel(m, commission.status)} />
                     {pending ? ` · ${m.commissions.pendingReview}` : ""}
                     {commission.statusReason && !pending
                       ? ` · ${commission.statusReason}`
@@ -265,7 +266,7 @@ export default async function CommissionsPage({
                           maxLength={200}
                           placeholder={m.commissions.rejectReason}
                         />
-                        <button type="submit">{m.commissions.reject}</button>
+                        <button type="submit" className="btn-danger">{m.commissions.reject}</button>
                       </form>
                     ) : null}
                   </td>

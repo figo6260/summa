@@ -32,7 +32,14 @@ export default async function SetupPage({
   const m = await pageMessages();
   const { error } = await searchParams;
   return (
-    <main className="panel">
+    <main className="authwrap">
+      <div className="authcard">
+        <div className="authbrand">
+          <span className="logo-mark" aria-hidden="true">
+            S
+          </span>
+          <span className="authbrand-name">{m.home.brand}</span>
+        </div>
       <h1>{m.setup.title}</h1>
       <p>{m.setup.intro}</p>
       {error ? <p className="error">{m.activate.passwordHint}</p> : null}
@@ -52,6 +59,7 @@ export default async function SetupPage({
         </label>
         <button type="submit">{m.setup.submit}</button>
       </form>
+      </div>
     </main>
   );
 }

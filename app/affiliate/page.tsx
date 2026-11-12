@@ -5,6 +5,7 @@ import { requireAffiliate } from "@/lib/auth";
 import { effectiveCommissionCents, getAffiliateBalance } from "@/lib/balance";
 import { pageMessages } from "@/lib/page-i18n";
 import AffiliateNav from "./affiliate-nav";
+import StatusBadge from "../status-badge";
 
 export default async function AffiliateDashboardPage() {
   const session = await requireAffiliate();
@@ -91,7 +92,7 @@ export default async function AffiliateDashboardPage() {
                   {effectiveCommissionCents(commission).toLocaleString()}{" "}
                   {commission.currency}
                 </td>
-                <td>{commission.status}</td>
+                <td><StatusBadge status={commission.status} label={commission.status} /></td>
                 <td>{commission.createdAt.toISOString().slice(0, 10)}</td>
               </tr>
             ))}
@@ -127,7 +128,7 @@ export default async function AffiliateDashboardPage() {
                 <td>
                   {payout.totalCents.toLocaleString()} {payout.currency}
                 </td>
-                <td>{payout.status}</td>
+                <td><StatusBadge status={payout.status} label={payout.status} /></td>
                 <td>
                   {payout.paidAt
                     ? payout.paidAt.toISOString().slice(0, 10)

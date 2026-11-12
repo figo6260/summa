@@ -29,7 +29,14 @@ export default async function ActivatePage({
     ? await findAffiliateByActivationToken(prisma, token)
     : null;
   return (
-    <main className="panel">
+    <main className="authwrap">
+      <div className="authcard">
+        <div className="authbrand">
+          <span className="logo-mark" aria-hidden="true">
+            S
+          </span>
+          <span className="authbrand-name">{m.home.brand}</span>
+        </div>
       <h1>{m.activate.title}</h1>
       {error === "invalid" || (!affiliate && error !== "short") ? (
         <p className="error">{m.activate.invalid}</p>
@@ -52,6 +59,7 @@ export default async function ActivatePage({
           </form>
         </>
       ) : null}
+      </div>
     </main>
   );
 }

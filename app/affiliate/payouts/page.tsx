@@ -5,6 +5,7 @@ import { requireAffiliate } from "@/lib/auth";
 import { pageMessages } from "@/lib/page-i18n";
 import type { Messages } from "@/lib/i18n";
 import AffiliateNav from "../affiliate-nav";
+import StatusBadge from "../../status-badge";
 
 function statusLabel(m: Messages, status: string): string {
   if (status === "PAID") return m.payouts.statusPaid;
@@ -36,9 +37,9 @@ export default async function AffiliatePayoutsPage() {
           <thead>
             <tr>
               <th>{m.payouts.period}</th>
-              <th>{m.payouts.gross}</th>
-              <th>{m.payouts.debtOffset}</th>
-              <th>{m.payouts.total}</th>
+              <th className="num">{m.payouts.gross}</th>
+              <th className="num">{m.payouts.debtOffset}</th>
+              <th className="num">{m.payouts.total}</th>
               <th>{m.payouts.status}</th>
               <th>{m.payouts.method}</th>
               <th>{m.payouts.externalRef}</th>
@@ -53,16 +54,16 @@ export default async function AffiliatePayoutsPage() {
                   {payout.periodStart.toISOString().slice(0, 10)} –{" "}
                   {payout.periodEnd.toISOString().slice(0, 10)}
                 </td>
-                <td>
+                <td className="num">
                   {payout.grossCents.toLocaleString()} {payout.currency}
                 </td>
-                <td>
+                <td className="num">
                   {payout.debtOffsetCents.toLocaleString()} {payout.currency}
                 </td>
-                <td>
+                <td className="num">
                   {payout.totalCents.toLocaleString()} {payout.currency}
                 </td>
-                <td>{statusLabel(m, payout.status)}</td>
+                <td><StatusBadge status={payout.status} label={statusLabel(m, payout.status)} /></td>
                 <td>
                   {payout.method ? m.payoutMethods[payout.method] : "—"}
                 </td>

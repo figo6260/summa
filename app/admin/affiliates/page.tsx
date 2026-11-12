@@ -12,6 +12,7 @@ import {
 import { pageMessages } from "@/lib/page-i18n";
 import type { Messages } from "@/lib/i18n";
 import AdminNav from "../admin-nav";
+import StatusBadge from "../../status-badge";
 
 async function requestBaseUrl(): Promise<string> {
   const hdrs = await headers();
@@ -135,7 +136,7 @@ export default async function AffiliatesPage({
               <tr key={a.id}>
                 <td>{a.name}</td>
                 <td>{a.email}</td>
-                <td>{statusLabel(m, a.status)}</td>
+                <td><StatusBadge status={a.status} label={statusLabel(m, a.status)} /></td>
                 <td>{a.createdAt.toISOString().slice(0, 10)}</td>
                 <td className="rowactions">
                   <Link href={`/admin/affiliates/${a.id}`}>{m.affiliates.edit}</Link>
@@ -143,7 +144,7 @@ export default async function AffiliatesPage({
                     <form action={toggleStatusAction}>
                       <input type="hidden" name="id" value={a.id} />
                       <input type="hidden" name="next" value="DISABLED" />
-                      <button type="submit">{m.affiliates.disable}</button>
+                      <button type="submit" className="btn-danger">{m.affiliates.disable}</button>
                     </form>
                   ) : null}
                   {a.status === "DISABLED" ? (

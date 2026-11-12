@@ -8,6 +8,7 @@ import { effectiveCommissionCents } from "@/lib/balance";
 import { pageMessages } from "@/lib/page-i18n";
 import type { Messages } from "@/lib/i18n";
 import AdminNav from "../../admin-nav";
+import StatusBadge from "../../../status-badge";
 
 function conversionStatusLabel(m: Messages, status: string): string {
   if (status === "REFUNDED") return m.conversions.statusRefunded;
@@ -122,7 +123,7 @@ export default async function ConversionDetailPage({
           </tr>
           <tr>
             <th>{m.common.status}</th>
-            <td>{conversionStatusLabel(m, conversion.status)}</td>
+            <td><StatusBadge status={conversion.status} label={conversionStatusLabel(m, conversion.status)} /></td>
           </tr>
           <tr>
             <th>{m.conversions.kind}</th>

@@ -7,6 +7,7 @@ import { effectiveCommissionCents } from "@/lib/balance";
 import { markPayoutFailed, markPayoutPaid } from "@/lib/payouts";
 import { pageMessages } from "@/lib/page-i18n";
 import AdminNav from "../../admin-nav";
+import StatusBadge from "../../../status-badge";
 
 const METHODS: PayoutMethod[] = [
   "MANUAL",
@@ -128,7 +129,7 @@ export default async function AdminPayoutDetailPage({
           </tr>
           <tr>
             <th>{m.payouts.status}</th>
-            <td>{payout.status}</td>
+            <td><StatusBadge status={payout.status} label={payout.status} /></td>
           </tr>
           <tr>
             <th>{m.payouts.method}</th>
@@ -188,7 +189,7 @@ export default async function AdminPayoutDetailPage({
                   {effectiveCommissionCents(commission).toLocaleString()}{" "}
                   {commission.currency}
                 </td>
-                <td>{commission.status}</td>
+                <td><StatusBadge status={commission.status} label={commission.status} /></td>
               </tr>
             ))}
           </tbody>
@@ -224,7 +225,7 @@ export default async function AdminPayoutDetailPage({
               {m.payouts.failReason}
               <input name="reason" required />
             </label>
-            <button type="submit">{m.payouts.markFailed}</button>
+            <button type="submit" className="btn-danger">{m.payouts.markFailed}</button>
           </form>
         </>
       ) : null}

@@ -5,6 +5,36 @@ All notable changes to Summa are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-11-12
+
+A visual release: the admin console and affiliate portal get a proper
+design system and a modern shell. No features, data model, or accounting
+behavior changed — this is a reskin only, verified by the same 219
+end-to-end checks that ship in `tests/`.
+
+### Changed
+
+- **Design system** — the global stylesheet was rebuilt around CSS
+  variables (an indigo brand color with slate neutrals) and reusable
+  component classes for cards, tables, forms, buttons, and feedback
+  banners. No new dependencies and no CSS framework.
+- **Sidebar layout** — both portals moved from a top link row to a
+  fixed left sidebar with a brand block and active-page highlighting,
+  plus a sticky top bar carrying the language switcher and sign-out.
+  On narrow screens the sidebar folds into a top strip with a
+  horizontally scrollable nav; wide tables scroll inside their card
+  instead of stretching the page.
+- **Card-style auth pages** — admin sign-in, affiliate sign-in,
+  first-run `/setup`, and affiliate activation are now centered cards
+  with the Summa brand mark.
+- **Status badges** — commission, payout, affiliate, link, and
+  conversion statuses render as tinted pills (holding / available /
+  paid / rejected / reversed, pending / failed, active / disabled),
+  using the existing localized labels; money columns are
+  right-aligned with tabular figures.
+- **Demo screenshots** in the README were refreshed to the new
+  interface.
+
 ## [1.0.0] - 2026-11-12
 
 First public release of the Summa open-source core: a self-hosted affiliate

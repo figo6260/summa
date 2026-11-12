@@ -5,6 +5,7 @@ import { getSingleProgram } from "@/lib/services";
 import { pageMessages } from "@/lib/page-i18n";
 import type { Messages } from "@/lib/i18n";
 import AdminNav from "../admin-nav";
+import StatusBadge from "../../status-badge";
 
 const PAGE_SIZE = 20;
 
@@ -136,7 +137,7 @@ export default async function ConversionsPage({
                     ? ` · ${m.conversions.refundedAmount} ${conversion.refundedCents}`
                     : ""}
                 </td>
-                <td>{conversionStatusLabel(m, conversion.status)}</td>
+                <td><StatusBadge status={conversion.status} label={conversionStatusLabel(m, conversion.status)} /></td>
                 <td>{conversion.source}</td>
                 <td>
                   {conversion.commission

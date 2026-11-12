@@ -5,6 +5,7 @@ import { requireAffiliate } from "@/lib/auth";
 import { effectiveCommissionCents } from "@/lib/balance";
 import { pageMessages } from "@/lib/page-i18n";
 import AffiliateNav from "../../affiliate-nav";
+import StatusBadge from "../../../status-badge";
 
 export default async function AffiliatePayoutDetailPage({
   params,
@@ -68,7 +69,7 @@ export default async function AffiliatePayoutDetailPage({
           </tr>
           <tr>
             <th>{m.payouts.status}</th>
-            <td>{payout.status}</td>
+            <td><StatusBadge status={payout.status} label={payout.status} /></td>
           </tr>
           <tr>
             <th>{m.payouts.method}</th>
@@ -121,7 +122,7 @@ export default async function AffiliatePayoutDetailPage({
                   {effectiveCommissionCents(commission).toLocaleString()}{" "}
                   {commission.currency}
                 </td>
-                <td>{commission.status}</td>
+                <td><StatusBadge status={commission.status} label={commission.status} /></td>
               </tr>
             ))}
           </tbody>
