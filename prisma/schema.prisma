@@ -1,0 +1,446 @@
+// Summa — core data model, v1 draft.
+//
+// Design notes (our own schema design, written for Summa):
+// - Money is always integer cents; rates are integer basis points (1500 = 15%).
+// - Every monetary rule from the plan (commission rate, buyer discount, hold
+//   days, attribution window, minimum payout) is a per-program setting with a
+//   sensible default — nothing is hard-coded in business logic.
+// - Conversions are idempotent: (programId, idempotencyKey) is unique, and a
+//   commission can only ever be created once per conversion.
+// - The commission hold lifecycle is an explicit state machine, see
+//   CommissionStatus below.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+/// Affiliate lifecycle (M1):
+///
+///   PENDING_ACTIVATION ──(sets password via invite link)──▶ ACTIVE
+///        │                                                    │
+///        └──────────────────(admin disables)──────────────────┴──▶ DISABLED
+///
+/// DISABLED accounts cannot sign in. PENDING_ACTIVATION accounts have no
+/// password yet and sign in only after activation — there is no separate
+/// email-verification step, so activation can never deadlock on a code
+/// that never arrives.
+enum AffiliateStatus {
+  PENDING_ACTIVATION
+  ACTIVE
+  DISABLED
+}
+
+/// Commission lifecycle (the hold state machine):
+///
+///   HOLDING ──(hold period elapses)──▶ AVAILABLE ──(included in a payout)──▶ PAID
+///      │                                  │                                   │
+///      ├─(admin rejects)──▶ REJECTED      └─(refund / chargeback)──▶ REVERSED ◀┘
+///
+/// A PAID commission reversed by a late refund also lands in REVERSED; the
+/// affiliate's balance then goes negative and is netted against future
+/// commissions at the application level.
+enum CommissionStatus {
+  HOLDING
+  AVAILABLE
+  PAID
+  REJECTED
+  REVERSED
+}
+
+enum ConversionStatus {
+  CONFIRMED
+  REFUNDED
+  CHARGEBACKED
+}
+
+enum PayoutStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum PayoutMethod {
+  MANUAL
+  BANK_TRANSFER
+  PAYPAL
+  WISE
+  OTHER
+}
+
+enum ActorType {
+  ADMIN
+  AFFILIATE
+  SYSTEM
+  API
+}
+
+/// How a fractional commission is rounded to whole cents (M4).
+/// FLOOR is the historical default and keeps the $24.65 x 15% = $3.69
+/// anchor exact.
+enum CommissionRounding {
+  FLOOR
+  NEAREST
+  CEIL
+}
+
+// ---------------------------------------------------------------------------
+// Admin — an operator account for the admin console. Admins are instance
+// level (the open-source core runs a single program per instance, so an
+// admin is not scoped to a program). The first admin is created through
+// the one-time setup flow; that flow closes once any admin exists.
+// ---------------------------------------------------------------------------
+
+model Admin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Program — one affiliate program (one product / store / brand).
+// ---------------------------------------------------------------------------
+
+model Program {
+  id                   String   @id @default(cuid())
+  name                 String
+  slug                 String   @unique
+  /// Default commission rate in basis points (1500 = 15%).
+  commissionRateBps    Int      @default(1500)
+  /// Rounding applied when a commission lands between whole cents (M4).
+  commissionRounding   CommissionRounding @default(FLOOR)
+  /// Optional buyer discount granted when ordering through an affiliate code,
+  /// in basis points (1500 = 15% off). 0 disables buyer discounts.
+  buyerDiscountBps     Int      @default(0)
+  currency             String   @default("USD")
+  /// Days after a click during which a conversion is attributed.
+  attributionWindowDays Int     @default(30)
+  /// Days a commission stays in HOLDING before it becomes AVAILABLE.
+  holdDays             Int      @default(30)
+  /// Minimum AVAILABLE balance (cents) required for a payout. 0 = no minimum.
+  minPayoutCents       Int      @default(0)
+  /// Day of month on which monthly payouts are settled (1-28).
+  payoutDayOfMonth     Int      @default(10)
+  /// Default landing page for referral links that do not carry their own
+  /// targetUrl (M2). Null means links must provide a target of their own.
+  defaultTargetUrl     String?
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  affiliates  Affiliate[]
+  links       ReferralLink[]
+  codes       DiscountCode[]
+  clicks      Click[]
+  conversions Conversion[]
+  commissions Commission[]
+  payouts     Payout[]
+  apiKeys     ApiKey[]
+  auditLogs   AuditLog[]
+  emailLogs   EmailLog[]
+}
+
+// ---------------------------------------------------------------------------
+// Affiliate — a promoter enrolled in one program.
+// ---------------------------------------------------------------------------
+
+model Affiliate {
+  id           String          @id @default(cuid())
+  programId    String
+  program      Program         @relation(fields: [programId], references: [id], onDelete: Cascade)
+  name         String
+  email        String
+  /// Null until the affiliate sets a password / accepts an invite.
+  passwordHash String?
+  status       AffiliateStatus @default(PENDING_ACTIVATION)
+  /// SHA-256 hash of the one-time activation token (the plain token only
+  /// ever exists in the link the admin hands to the affiliate).
+  activationTokenHash      String?   @unique
+  /// Activation links expire 7 days after they are issued.
+  activationTokenExpiresAt DateTime?
+  /// Set when the affiliate completes activation.
+  activatedAt              DateTime?
+  /// Free-form payout preference captured from the affiliate
+  /// (method + account details), kept as JSON to stay provider-agnostic.
+  payoutMethod PayoutMethod    @default(MANUAL)
+  payoutDetails Json?
+  /// Transactional email opt-ins (M5): {"commission":bool,"payout":bool}.
+  /// Null means everything is on.
+  notificationPrefs Json?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  links       ReferralLink[]
+  codes       DiscountCode[]
+  conversions Conversion[]
+  commissions Commission[]
+  payouts     Payout[]
+
+  @@unique([programId, email])
+  @@index([programId, status])
+}
+
+// ---------------------------------------------------------------------------
+// ReferralLink — a trackable link; `code` is the public ref token used in
+// /r/:code. An affiliate can own several links (e.g. per channel).
+// ---------------------------------------------------------------------------
+
+model ReferralLink {
+  id          String    @id @default(cuid())
+  programId   String
+  program     Program   @relation(fields: [programId], references: [id], onDelete: Cascade)
+  affiliateId String
+  affiliate   Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  code        String    @unique
+  /// Where the visitor is sent after the click is recorded; null = program's
+  /// default landing page.
+  targetUrl   String?
+  /// Optional channel label (e.g. "youtube", "newsletter") for reporting.
+  channel     String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  clicks Click[]
+
+  @@index([affiliateId])
+}
+
+// ---------------------------------------------------------------------------
+// DiscountCode — a checkout code attributed to one affiliate. Whether the
+// same string may double as that affiliate's referral code is a program
+// setting handled at the application level ("one code, two uses").
+// ---------------------------------------------------------------------------
+
+model DiscountCode {
+  id           String    @id @default(cuid())
+  programId    String
+  program      Program   @relation(fields: [programId], references: [id], onDelete: Cascade)
+  affiliateId  String
+  affiliate    Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  code         String    @unique
+  /// Discount granted to the buyer, in basis points.
+  discountBps  Int
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([affiliateId])
+}
+
+// ---------------------------------------------------------------------------
+// Click — one recorded visit through a referral link. Kept deliberately lean:
+// the redirect endpoint writes a single row and 302s.
+// ---------------------------------------------------------------------------
+
+model Click {
+  id          String       @id @default(cuid())
+  programId   String
+  program     Program      @relation(fields: [programId], references: [id], onDelete: Cascade)
+  linkId      String
+  link        ReferralLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  /// Opaque visitor token stored in the attribution cookie.
+  visitorToken String?
+  referrer    String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime     @default(now())
+
+  @@index([linkId, createdAt])
+  @@index([programId, createdAt])
+  @@index([visitorToken])
+}
+
+// ---------------------------------------------------------------------------
+// Conversion — a paid order attributed to an affiliate (via link cookie or
+// discount code). Created by the server-to-server conversion API or by a
+// payment adapter.
+// ---------------------------------------------------------------------------
+
+model Conversion {
+  id             String           @id @default(cuid())
+  programId      String
+  program        Program          @relation(fields: [programId], references: [id], onDelete: Cascade)
+  affiliateId    String
+  affiliate      Affiliate        @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  /// The merchant's order id in their own system.
+  externalOrderId String
+  /// Opaque customer reference (merchant-side customer id or email hash).
+  customerRef    String?
+  /// Gross amount actually paid by the buyer, in cents.
+  amountCents    Int
+  currency       String
+  /// True for a subscription renewal payment, false for the first
+  /// payment (M4). v1 charges both at the program rate; the marker is
+  /// stored so reporting (and v1.5 tiered rates) can tell them apart.
+  isRenewal      Boolean          @default(false)
+  /// Cumulative amount refunded for this order so far, in cents (M4).
+  /// Partial refunds grow this towards amountCents; chargebacks fill it.
+  refundedCents  Int              @default(0)
+  status         ConversionStatus @default(CONFIRMED)
+  /// Caller-supplied idempotency key; retries with the same key are no-ops.
+  idempotencyKey String
+  /// Which attribution path produced this conversion: "link" | "code" | "api".
+  source         String           @default("api")
+  occurredAt     DateTime         @default(now())
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  commission Commission?
+
+  @@unique([programId, idempotencyKey])
+  @@unique([programId, externalOrderId])
+  @@index([affiliateId, occurredAt])
+}
+
+// ---------------------------------------------------------------------------
+// Commission — money owed to an affiliate for exactly one conversion.
+// ---------------------------------------------------------------------------
+
+model Commission {
+  id           String           @id @default(cuid())
+  programId    String
+  program      Program          @relation(fields: [programId], references: [id], onDelete: Cascade)
+  affiliateId  String
+  affiliate    Affiliate        @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  conversionId String           @unique
+  conversion   Conversion       @relation(fields: [conversionId], references: [id], onDelete: Cascade)
+  amountCents  Int
+  /// Cumulative cents already clawed back by refunds/chargebacks (M4).
+  /// The commission's effective amount is amountCents - reversedCents;
+  /// every display and balance figure uses the effective amount.
+  reversedCents Int             @default(0)
+  /// Of the clawed-back cents, how many have already been settled
+  /// against a later payout (M5). Outstanding clawback debt is
+  /// reversedCents - debtSettledCents on commissions that were paid
+  /// out; a reversal is settled at payout-generation time for the
+  /// payout's own commissions (their gross already nets it out) and at
+  /// mark-paid time for debt left over from earlier payouts.
+  debtSettledCents Int          @default(0)
+  currency     String
+  status       CommissionStatus @default(HOLDING)
+  /// When the hold elapses and the commission may become AVAILABLE.
+  holdUntil    DateTime
+  /// Set when the commission is settled inside a payout.
+  payoutId     String?
+  payout       Payout?          @relation(fields: [payoutId], references: [id], onDelete: SetNull)
+  /// Why a commission was rejected or reversed (refund id, chargeback, note).
+  statusReason String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([affiliateId, status])
+  @@index([programId, status, holdUntil])
+}
+
+// ---------------------------------------------------------------------------
+// Payout — one settlement batch for one affiliate (typically monthly).
+// ---------------------------------------------------------------------------
+
+model Payout {
+  id           String       @id @default(cuid())
+  programId    String
+  program      Program      @relation(fields: [programId], references: [id], onDelete: Cascade)
+  affiliateId  String
+  affiliate    Affiliate    @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  periodStart  DateTime
+  periodEnd    DateTime
+  /// Σ effective amounts of the commissions swept into this payout (M5).
+  grossCents   Int          @default(0)
+  /// The part of grossCents that repaid earlier clawback debt instead
+  /// of being paid out in cash (M5). totalCents = gross - debtOffset.
+  debtOffsetCents Int       @default(0)
+  /// Net cash actually transferred to the affiliate.
+  totalCents   Int
+  currency     String
+  status       PayoutStatus @default(PENDING)
+  method       PayoutMethod @default(MANUAL)
+  /// External reference of the actual transfer (bank txn id, etc.), set when paid.
+  externalRef  String?
+  paidAt       DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  commissions Commission[]
+
+  @@index([affiliateId, status])
+  @@index([programId, periodStart])
+}
+
+// ---------------------------------------------------------------------------
+// EmailLog — one row per transactional email the system tried to send
+// (M5). In the default "log" transport the row *is* the delivery
+// record; in "smtp" transport it is the receipt (status sent/failed).
+// Types: invite | commission_available | commission_rejected |
+// payout_paid. The invite mail carries the activation link — it is
+// this product's verification-class email (there is no separate
+// email-verification-code flow, see M1's activation design).
+// ---------------------------------------------------------------------------
+
+model EmailLog {
+  id          String   @id @default(cuid())
+  programId   String?
+  program     Program? @relation(fields: [programId], references: [id], onDelete: SetNull)
+  toEmail     String
+  type        String
+  subject     String
+  body        String
+  /// logged (log transport) | sent | failed (smtp transport)
+  status      String   @default("logged")
+  relatedType String?
+  relatedId   String?
+  createdAt   DateTime @default(now())
+
+  @@index([programId, createdAt])
+  @@index([toEmail, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// ApiKey — authenticates server-to-server calls (conversion API, webhooks).
+// Only the hash is stored.
+// ---------------------------------------------------------------------------
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  programId   String
+  program     Program   @relation(fields: [programId], references: [id], onDelete: Cascade)
+  name        String
+  /// Display prefix of the key (e.g. "summa_live_ab12"), for identification.
+  prefix      String
+  keyHash     String    @unique
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([programId])
+}
+
+// ---------------------------------------------------------------------------
+// AuditLog — key operations leave a trace; SYSTEM entries have no actor id.
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id         String    @id @default(cuid())
+  programId  String?
+  program    Program?  @relation(fields: [programId], references: [id], onDelete: SetNull)
+  actorType  ActorType
+  actorId    String?
+  action     String
+  targetType String?
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime  @default(now())
+
+  @@index([programId, createdAt])
+}

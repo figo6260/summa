@@ -1,0 +1,24 @@
+# Summa — local development services.
+# Only PostgreSQL for now; the app itself runs on the host via `npm run dev`.
+# This is the project's single compose file (local dev only, never production).
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: summa-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: summa
+      POSTGRES_PASSWORD: summa_dev
+      POSTGRES_DB: summa
+    ports:
+      - "5433:5432"
+    volumes:
+      - summa-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U summa -d summa"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  summa-pgdata:

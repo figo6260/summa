@@ -1,0 +1,244 @@
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  background: #fafafa;
+  color: #16161a;
+}
+
+.home {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 96px 24px;
+  text-align: center;
+}
+
+.brand {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4f46e5;
+  margin: 0 0 16px;
+}
+
+.home h1 {
+  font-size: 44px;
+  line-height: 1.15;
+  margin: 0 0 20px;
+}
+
+.tagline {
+  font-size: 17px;
+  line-height: 1.7;
+  color: #44444c;
+  margin: 0 0 32px;
+}
+
+.status {
+  font-size: 13px;
+  color: #8a8a93;
+}
+
+.lang-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #8a8a93;
+}
+
+.lang-switcher select {
+  font-size: 13px;
+  padding: 4px 6px;
+  border: 1px solid #d8d8de;
+  border-radius: 6px;
+  background: #fff;
+  color: #16161a;
+}
+
+/* ---- M1: panels, forms, tables ---- */
+.panel {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+.panel.wide {
+  max-width: 880px;
+}
+.panel h1 {
+  font-size: 28px;
+  margin: 0 0 12px;
+}
+.panel h2 {
+  font-size: 19px;
+  margin: 32px 0 12px;
+}
+.topnav {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 14px;
+  margin-bottom: 28px;
+}
+.topnav a {
+  color: #4f46e5;
+  text-decoration: none;
+}
+.homelinks {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin: 0 0 28px;
+  font-size: 15px;
+}
+.homelinks a {
+  color: #4f46e5;
+}
+.form {
+  display: grid;
+  gap: 14px;
+  margin: 16px 0 8px;
+}
+.form label {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  color: #33333a;
+}
+.form label.check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.form input,
+.form select,
+.form textarea {
+  font-size: 15px;
+  padding: 8px 10px;
+  border: 1px solid #cfcfd6;
+  border-radius: 8px;
+  background: #fff;
+  color: #16161a;
+}
+.form button,
+.rowactions button {
+  font-size: 14px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: #4f46e5;
+  color: #fff;
+  cursor: pointer;
+  justify-self: start;
+}
+.form small {
+  color: #8a8a93;
+}
+.error {
+  color: #b3261e;
+  font-size: 14px;
+}
+.ok {
+  color: #137333;
+  font-size: 14px;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin-top: 12px;
+}
+.table th,
+.table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e4e4e9;
+  vertical-align: top;
+}
+.rowactions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.rowactions a {
+  color: #4f46e5;
+}
+.linkbox {
+  border: 1px solid #c7c2f5;
+  background: #f2f0ff;
+  border-radius: 10px;
+  padding: 16px;
+  margin: 20px 0;
+}
+.linkbox code {
+  display: block;
+  word-break: break-all;
+  background: #fff;
+  border: 1px solid #d8d8de;
+  border-radius: 6px;
+  padding: 8px;
+  margin-top: 8px;
+}
+.linklike {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 14px;
+  color: #4f46e5;
+  cursor: pointer;
+}
+.topnav form {
+  margin: 0;
+}
+
+/* ---- M2: referral links ---- */
+.urlcell {
+  word-break: break-all;
+  font-size: 13px;
+}
+
+/* ---- M5: stat cards (dashboards) ---- */
+.statgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.statcard {
+  border: 1px solid #e2e2e8;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #fff;
+}
+.statcard strong {
+  font-size: 22px;
+}
+.statlabel {
+  font-size: 13px;
+  color: #666;
+}
+
+/* ---- M5: narrow screens — tables scroll inside the panel instead of
+   stretching the page (375px gate for both portals) ---- */
+@media (max-width: 700px) {
+  .table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

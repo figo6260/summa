@@ -1,0 +1,56 @@
+# Summa — release compose: the full stack (app + PostgreSQL) in one command.
+#
+#   cp .env.example .env    # then set POSTGRES_PASSWORD and SESSION_SECRET
+#   docker compose -f docker-compose.release.yml up -d --build
+#
+# Then open http://localhost:3000/setup to create the first admin.
+#
+# This file is for running Summa. For local *development* use
+# docker-compose.yml instead (database only; the app runs on the host
+# via `npm run dev`).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-summa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-summa}
+    volumes:
+      - summa-release-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-summa} -d ${POSTGRES_DB:-summa}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  app:
+    build:
+      context: .
+      args:
+        # Optional npm mirror for the image build (see .env.example).
+        NPM_REGISTRY: ${NPM_REGISTRY:-}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Assembled from the POSTGRES_* values above; the release compose
+      # file is the one place that knows the database lives in `db`.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-summa}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-summa}
+      SESSION_SECRET: "${SESSION_SECRET:?Set SESSION_SECRET in .env (generate one with openssl rand -hex 32)}"
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      MAIL_TRANSPORT: ${MAIL_TRANSPORT:-log}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      SUMMA_API_RATE_LIMIT: ${SUMMA_API_RATE_LIMIT:-300}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+
+volumes:
+  summa-release-pgdata:

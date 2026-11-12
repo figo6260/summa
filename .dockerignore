@@ -1,0 +1,13 @@
+.git
+node_modules
+.next
+out
+.env
+.env.*
+!.env.example
+*.local
+.DS_Store
+npm-debug.log*
+docs
+README.md
+tests
