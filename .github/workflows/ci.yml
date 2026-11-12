@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: summa
+          POSTGRES_PASSWORD: summa-ci-password
+          POSTGRES_DB: summa_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U summa -d summa_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+
+    env:
+      DATABASE_URL: postgresql://summa:summa-ci-password@localhost:5432/summa_test
+      SESSION_SECRET: ci-placeholder-secret-not-for-production
+      SESSION_COOKIE_SECURE: "false"
+      MAIL_TRANSPORT: log
+      APP_BASE_URL: http://127.0.0.1:3457
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply database schema
+        run: npx prisma db push
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      - name: Provide .env for the test suites
+        run: |
+          cat > .env <<EOF
+          DATABASE_URL=${DATABASE_URL}
+          SESSION_SECRET=${SESSION_SECRET}
+          SESSION_COOKIE_SECURE=false
+          MAIL_TRANSPORT=log
+          APP_BASE_URL=http://127.0.0.1:3457
+          EOF
+
+      - name: Start the production server
+        run: |
+          nohup npm run start -- -p 3457 > /tmp/summa-server.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:3457/ > /dev/null; then
+              echo "server is up"
+              break
+            fi
+            sleep 2
+          done
+          curl -sf http://127.0.0.1:3457/ > /dev/null
+
+      - name: Run the end-to-end suites
+        run: npm run test:e2e

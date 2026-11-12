@@ -117,6 +117,34 @@ npm run dev
 
 Stack: Next.js (App Router) + TypeScript + Prisma + PostgreSQL. UI strings live in `public/messages/<locale>.json` (English is the source; all locales must carry the same keys — `node scripts/validate-i18n.mjs` checks this). Terminology is locked in [`docs/i18n-glossary.md`](docs/i18n-glossary.md).
 
+## Running the tests
+
+The end-to-end suites in [`tests/`](tests/) exercise the service layer and a
+production build against a real PostgreSQL database: admins & activation,
+attribution, the conversion API & Stripe adapter, the commission lifecycle,
+and payouts & mail — plus the i18n key/placeholder validation. They are
+self-cleaning (fixtures are created with unique names and deleted
+afterwards), so they can run repeatedly against a scratch database.
+
+You need Node.js >= 20 and a PostgreSQL database the suites may write to:
+
+```bash
+docker compose up -d            # PostgreSQL only, or bring your own
+cp .env.example .env            # set DATABASE_URL + SESSION_SECRET
+npm ci
+npx prisma db push
+npm run build                   # the HTTP suites run the production build
+npm run test:e2e
+```
+
+`npm run test:e2e` runs all five suites in order and finishes with
+`scripts/validate-i18n.mjs`. Individual suites are available as
+`npm run test:m1` ... `test:m5`. The HTTP suites bind throwaway servers to
+`SUMMA_TEST_PORT` (defaults 3461 / 3462); the attribution suite builds
+sample URLs against `SUMMA_TEST_ORIGIN` (default `http://127.0.0.1:3457`).
+Never point the suites at a production database — they create and delete
+programs, affiliates and commissions.
+
 ## Summa Pro (hosted)
 
 This repository is the open-source core, free to self-host under Apache-2.0. **Summa Pro** is the hosted edition run by the Summa team — the same core, operated for you, plus capabilities that are *not* part of the open-source distribution:
